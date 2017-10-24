@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 """Parsing code for DICOMS and contour files"""
 
 import dicom
@@ -6,6 +8,10 @@ from dicom.errors import InvalidDicomError
 import numpy as np
 from PIL import Image, ImageDraw
 
+# added to make the script executable from console
+import sys, os
+import pandas as pd
+from dataprep.dataprep.tests import test_files
 
 def parse_contour_file(filename):
     """Parse the given contour filename
@@ -72,3 +78,68 @@ def poly_to_mask(polygon, width, height):
     ImageDraw.Draw(img).polygon(xy=polygon, outline=0, fill=1)
     mask = np.array(img).astype(bool)
     return mask
+
+
+def get_IDs(data_directory, id_file_name = '/link.csv'):
+    """Read the ID csv
+
+    :param data_directory: where the data is stored
+    :param id_file_name: file name
+    :return dataframe
+    """
+
+    filename = data_directory + id_file_name
+    return pd.read_csv(filename)
+
+
+def main():
+    """ Fetch and bind data into dictionary
+     Side note: I could have used a Data Class to do this, but dictionaries in python are just as efficient and have built-in routines to add/remove data.
+
+    :param data_directory: where the data is located
+    :return: dict containing i-contour, o-contour, mask, dicom_image, and nner, outerBoolean mask of shape (height, width)
+    """
+
+    if sys.argv[0] is None:
+        data_directory = 'data'
+
+    #####################
+    # Test the data input
+    #####################
+    # test_files(data_directory)
+
+    df_IDs = get_IDs(data_directory)
+
+    d = dict()
+    filedicom = ''
+    i_contour_directory, i_contour_filename = data_directory + '/contourfiles/{}/i-contours/','IM-0001-{}-icontour-manual.txt'
+    o_contour_directory, o_contour_filename = data_directory + '/contourfiles/{}/o-contours/','IM-0001-{}-ocontour-manual.txt'
+    dicom_directory,     dicom_filename     = data_directory + '/dicoms/{}/', '{},dcm'
+    for _ in df_IDs.size:
+        list_dir_i_contour = os.listdir(i_contour_directory.format(df_IDs.original_id[_]))
+        for s in list_dir_i_contour:
+            no = s.split('-')[2]
+
+            i_contour = parse_contour_file(i_contour_directory.format(df_IDs.original_id[_])+
+                                           i_contour_filename.format(no))
+            o_contour = parse_contour_file(o_contour_directory.format(df_IDs.original_id[_])+
+                                           o_contour_filename.format(no))
+            mask = poly_to_mask(i_contour, width=350, height=350)
+            img = parse_dicom_file(dicom_directory.format(df_IDs.patient_id[_])+dicom_filename.format(no.strip('0')))
+
+        ###########
+        # bind data into one dictionary
+        d[_] = {'i_contour': i_contour,
+                'o_contour': o_contour,
+                'mask' : mask,
+                'dicom': img,
+                'attributes': {
+                    'file_dicom': filedicom,
+                    },
+                }
+
+
+
+if __name__ == '__main__':
+    # main should return 0 for success, something else (usually 1) for error.
+    sys.exit(main())
