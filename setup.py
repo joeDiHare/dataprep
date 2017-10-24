@@ -17,5 +17,6 @@ setup(name='dataprep',
           'numpy',
           'pydicom',
           'pillow',
+          'pandas'
           ],
       zip_safe=False)

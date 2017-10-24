@@ -1,7 +1,15 @@
-from unittest import TestCase
+import unittest
 
 import dataprep
+from dataprep.parse_input import *
 
-class TestData(TestCase):
-    def test_is_string(self):
+class TestData(unittest.TestCase):
+
+    def setUp(self):
         pass
+
+    def test_parsing(self):
+        pass
+
+if __name__ == '__main__':
+    unittest.main()

@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 # added to make the script executable from console
 import sys, os
 import pandas as pd
-from dataprep.dataprep.tests import test_files
+# from dataprep.dataprep.tests import test_files
 
 def parse_contour_file(filename):
     """Parse the given contour filename
@@ -91,8 +91,15 @@ def get_IDs(data_directory, id_file_name = '/link.csv'):
     filename = data_directory + id_file_name
     return pd.read_csv(filename)
 
+def sanitize_input():
+    #ToDo
+    """Attempt to spot misclassified samples by checking that i-contours are inside o-contours.
+    This is achieved by checking that, for a given x-coordinate, the followig is true (y1_o < y1_i < y2_i < y2_i) within some tolerance value.
+    Method 2: check that the Area for o-contours is greater than i-contours.
+    :return:
+    """
 
-def main():
+def get_data():
     """ Fetch and bind data into dictionary
      Side note: I could have used a Data Class to do this, but dictionaries in python are just as efficient and have built-in routines to add/remove data.
 
@@ -101,7 +108,9 @@ def main():
     """
 
     if sys.argv[0] is None:
-        data_directory = 'data'
+        data_directory = '../data'
+    data_directory = '../data'
+    # print(sys.argv)
 
     #####################
     # Test the data input
@@ -110,36 +119,55 @@ def main():
 
     df_IDs = get_IDs(data_directory)
 
-    d = dict()
+    data, data_binds = dict(), []
     filedicom = ''
     i_contour_directory, i_contour_filename = data_directory + '/contourfiles/{}/i-contours/','IM-0001-{}-icontour-manual.txt'
     o_contour_directory, o_contour_filename = data_directory + '/contourfiles/{}/o-contours/','IM-0001-{}-ocontour-manual.txt'
-    dicom_directory,     dicom_filename     = data_directory + '/dicoms/{}/', '{},dcm'
-    for _ in df_IDs.size:
+    dicom_directory,     dicom_filename     = data_directory + '/dicoms/{}/', '{}.dcm'
+    for _ in range(len(df_IDs.patient_id)):
+        print(_)
         list_dir_i_contour = os.listdir(i_contour_directory.format(df_IDs.original_id[_]))
+        list_dir_o_contour = os.listdir(o_contour_directory.format(df_IDs.original_id[_]))
+        print(list_dir_i_contour, list_dir_o_contour)
+        tmp_dict, ind = dict(), 0
         for s in list_dir_i_contour:
             no = s.split('-')[2]
 
-            i_contour = parse_contour_file(i_contour_directory.format(df_IDs.original_id[_])+
-                                           i_contour_filename.format(no))
-            o_contour = parse_contour_file(o_contour_directory.format(df_IDs.original_id[_])+
-                                           o_contour_filename.format(no))
-            mask = poly_to_mask(i_contour, width=350, height=350)
-            img = parse_dicom_file(dicom_directory.format(df_IDs.patient_id[_])+dicom_filename.format(no.strip('0')))
+            # File locations
+            i_contour_location = i_contour_directory.format(df_IDs.original_id[_])+ i_contour_filename.format(no)
+            o_contour_location = o_contour_directory.format(df_IDs.original_id[_])+o_contour_filename.format(no)
+            img_dicom_location = dicom_directory.format(df_IDs.patient_id[_])+dicom_filename.format(no.strip('0'))
 
-        ###########
-        # bind data into one dictionary
-        d[_] = {'i_contour': i_contour,
-                'o_contour': o_contour,
-                'mask' : mask,
-                'dicom': img,
-                'attributes': {
-                    'file_dicom': filedicom,
-                    },
-                }
+            # Parse data
+            i_contour = parse_contour_file(i_contour_location)
+            o_contour = parse_contour_file(o_contour_location) if o_contour_location in list_dir_o_contour else None
+            mask = poly_to_mask(i_contour, width=350, height=350)
+            img = parse_dicom_file(img_dicom_location)
+
+            ###########
+            # bind data into one dictionary
+            ind += 1
+            tmp_dict[ind] = {'i_contour': i_contour,
+                             'o_contour': o_contour,
+                             'mask' : mask,
+                             'dicom': img,
+                             'frame': no,
+                             'attributes': {
+                                 'file_dicom': filedicom,
+                                 'i_contour_location': i_contour_location,
+                                 'o_contour_location': o_contour_location,
+                                 'img_dicom_location': img_dicom_location,
+                                 },
+                             }
+            # list of files locations
+            data_binds.append([img_dicom_location, i_contour_location])
+        data[_] = tmp_dict
+
+    return data, data_binds
+
 
 
 
 if __name__ == '__main__':
     # main should return 0 for success, something else (usually 1) for error.
-    sys.exit(main())
+    sys.exit(get_data())
