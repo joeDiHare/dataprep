@@ -11,7 +11,6 @@ from PIL import Image, ImageDraw
 # added to make the script executable from console
 import sys, os
 import pandas as pd
-# from dataprep.dataprep.tests import test_files
 
 def parse_contour_file(filename):
     """Parse the given contour filename
@@ -55,8 +54,11 @@ def parse_dicom_file(filename):
 
         if intercept != 0.0 and slope != 0.0:
             dcm_image = dcm_image*slope + intercept
+
         dcm_dict = {'pixel_data' : dcm_image}
-        return dcm_dict
+        # print(dcm.Rows, dcm.Columns)
+        return dcm_dict, dcm.Rows, dcm.Columns
+
     except InvalidDicomError:
         #ToDo propagate the error
         raise
@@ -125,10 +127,10 @@ def get_data():
     o_contour_directory, o_contour_filename = data_directory + '/contourfiles/{}/o-contours/','IM-0001-{}-ocontour-manual.txt'
     dicom_directory,     dicom_filename     = data_directory + '/dicoms/{}/', '{}.dcm'
     for _ in range(len(df_IDs.patient_id)):
-        print(_)
+        print('Subject data',_)
         list_dir_i_contour = os.listdir(i_contour_directory.format(df_IDs.original_id[_]))
         list_dir_o_contour = os.listdir(o_contour_directory.format(df_IDs.original_id[_]))
-        print(list_dir_i_contour, list_dir_o_contour)
+        # print(list_dir_i_contour, list_dir_o_contour)
         tmp_dict, ind = dict(), 0
         for s in list_dir_i_contour:
             no = s.split('-')[2]
@@ -141,8 +143,8 @@ def get_data():
             # Parse data
             i_contour = parse_contour_file(i_contour_location)
             o_contour = parse_contour_file(o_contour_location) if o_contour_location in list_dir_o_contour else None
-            mask = poly_to_mask(i_contour, width=350, height=350)
-            img = parse_dicom_file(img_dicom_location)
+            img, width, height = parse_dicom_file(img_dicom_location)
+            mask = poly_to_mask(i_contour, width=width, height=height)
 
             ###########
             # bind data into one dictionary
@@ -157,13 +159,15 @@ def get_data():
                                  'i_contour_location': i_contour_location,
                                  'o_contour_location': o_contour_location,
                                  'img_dicom_location': img_dicom_location,
+                                 'width': width,
+                                 'height': height,
                                  },
                              }
             # list of files locations
             data_binds.append([img_dicom_location, i_contour_location])
         data[_] = tmp_dict
 
-    return data, data_binds
+    # return data, data_binds
 
 
 
