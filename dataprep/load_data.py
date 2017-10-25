@@ -25,7 +25,8 @@ class LoadData(object):
         self.height_dicom = height_dicom
 
     def split_data_method(self, L, split_data):
-        """ Check that the split_data parameter is entered correctly and split the data accordingly
+        """ ((Actually, I ended up not using this method))
+        Check that the split_data parameter is entered correctly and split the data accordingly
         :param L: len of data
         :param split_data: how ti split the database. List [float a, float b], where a is the number of samples for training, and b the number of samples for validation
         :return: number of samples for training, validation, and testing.
@@ -35,7 +36,6 @@ class LoadData(object):
         perc_valid = int(split_data[1]*L)
         perc_test = L - perc_train - perc_valid
 
-        ####################
         # Input sanity check
         if perc_train+perc_valid+perc_test != L:
             ValueError('Data split not correct: split_data[0] and split_data[1] must sum to 1 (currently split_data = {})'.format(split_data))
@@ -43,30 +43,29 @@ class LoadData(object):
             ValueError('split_data[0] must be between 0 and 1 (currently split_data[0] = {})'.format(split_data[0]))
         if split_data[1]>1 or split_data[1]<0:
             ValueError('split_data[1] must be between 0 and 1 (currently split_data[0] = {})'.format(split_data[1]))
-        ####################
 
         return perc_train, perc_valid, perc_test
 
 
-    def load_data_generator(self, batch_size=8, split_data=[.7, .1], random_order=True):
+    def load_data_generator(self, batch_size=8, random_order=True, split_data=[.7, .1]):
         """
         Generator for data in batches
-        :param data:
         :param batch_size:
+        :param split_data: used for a method that I eneded up not needing
         :return:
         """
 
         data = self.data
-        # data, data_binds = get_data(data_directory)
-        # L = len(data)
-        # print(L)
 
-        perc_train, perc_valid, perc_test = self.split_data_method(len(data), split_data)
+        # The data split is not necessary at this point.
+        # perc_train, perc_valid, perc_test = self.split_data_method(len(data), split_data)
 
+        # Create indeces and shuffle if required order is random (as per description)
         indeces = np.arange(len(data))
         if random_order:
             np.random.shuffle(indeces)
 
+        # implement data generator
         start = 0
         while True:
             stop = start + batch_size
@@ -84,13 +83,12 @@ class LoadData(object):
                 start = diff
             batch = batch.astype(np.float32)
 
+            # bind data
             input, output = [], []
-            # print('batch',batch)
             for ind in batch:
-                # print(ind)
                 input.append(data[ind]['mask'])
                 output.append(data[ind]['dicom'])
 
-            # yield [indeces[int(k)] for k in batch], batch
             yield np.array(input), np.array(output)
+            # yield [indeces[int(k)] for k in batch], batch (this is useful for debugging)
 

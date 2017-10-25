@@ -5,12 +5,11 @@
 import dicom
 from dicom.errors import InvalidDicomError
 
+import pandas as pd
 import numpy as np
 from PIL import Image, ImageDraw
 
-# added to make the script executable from console
 import sys, os
-import pandas as pd
 
 import warnings
 
@@ -95,8 +94,8 @@ def get_IDs(data_directory, id_file_name = '/link.csv'):
     filename = data_directory + id_file_name
     return pd.read_csv(filename)
 
-def sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location):
-    """Attempt to detect errors in the data collection.
+def anomaly_detector(i_contour, o_contour, i_contour_location, o_contour_location):
+    """My attempt at a simple "Anomaly Detector"
     Method1: For samples where both i-contours and o-contours are available, check that i-contours are withing o-contours.
     This is achieved by checking that, for a given x-coordinate, the following is true (y1_o < y1_i < y2_i < y2_i) within some tolerance value [tol].
     Method 2: check that the Area for o-contours is greater than i-contours [not implemented].
@@ -104,8 +103,8 @@ def sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location)
     """
     if i_contour is None or o_contour is None:
         return
-    i_c = np.abs(np.asarray(i_contour))
-    o_c = np.abs(np.asarray(o_contour))
+    i_c = np.round(np.asarray(i_contour))
+    o_c = np.round(np.asarray(o_contour))
     d_i, d_o = dict(), dict()
     for _ in range(i_c.shape[1]):
         if i_c[_][0] in d_i:
@@ -121,27 +120,18 @@ def sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location)
     for _ in d_i:
         if _ in d_o:
             if (max(d_o[_])-max(d_i[_])<tol or min(d_o[_])-min(d_i[_])<tol):
-                warnings.warn('The following files did not pass the sanity check:\ni-contour: {}\no-contour: {}'.format(i_contour_location, o_contour_location))
+                warnings.warn('The following files did not pass the sanity check:\ni-contour: {}\no-contour: {}'
+                              .format(i_contour_location, o_contour_location))
 
 
 def get_data(data_directory='/data'):
-    """ Fetch and bind data into dictionary
-     Side note: I could have used a Data Class to do this, but dictionaries in python are just as efficient and have built-in routines to add/remove data.
+    """ Fetch and bind data into dictionary.
+     Side note: I could have used a Data Class to do this, but dictionaries in python are just as efficient and have
+     built-in routines to add/remove data.
 
     :param data_directory: where the data is located
     :return: dict containing i-contour, o-contour, mask, dicom_image, and nner, outerBoolean mask of shape (height, width)
     """
-
-    # if sys.argv[0] is None:
-    #     data_directory = '../data'
-    # data_directory = '../data'
-    # print(sys.argv)
-    # print('cd (from parse_input.py):', os.getcwd())
-
-    #####################
-    # Test the data input
-    #####################
-    # test_files(data_directory)
 
     df_IDs = get_IDs(data_directory)
 
@@ -152,12 +142,11 @@ def get_data(data_directory='/data'):
     o_contour_directory, o_contour_filename = data_directory + '/contourfiles/{}/o-contours/','IM-0001-{}-ocontour-manual.txt'
     dicom_directory,     dicom_filename     = data_directory + '/dicoms/{}/', '{}.dcm'
     for _ in range(len(df_IDs.patient_id)):
-        print('Subject data',_)
+
+        # print('Subject data',_)
         list_dir_i_contour = os.listdir(i_contour_directory.format(df_IDs.original_id[_]))
         list_dir_o_contour = os.listdir(o_contour_directory.format(df_IDs.original_id[_]))
-        # print(list_dir_i_contour, list_dir_o_contour)
-        # tmp_dict = dict()
-        # ind = 0
+
         for s in list_dir_i_contour:
             no = s.split('-')[2]
 
@@ -172,7 +161,8 @@ def get_data(data_directory='/data'):
             img, width, height = parse_dicom_file(img_dicom_location)
             mask = poly_to_mask(i_contour, width=width, height=height)
 
-            sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location)
+            # anomaly detector
+            anomaly_detector(i_contour, o_contour, i_contour_location, o_contour_location)
 
             ###########
             # bind data into one dictionary
@@ -196,10 +186,8 @@ def get_data(data_directory='/data'):
             # list of files locations
             data_binds.append([ind, img_dicom_location, i_contour_location])
             ind += 1
-        # data[_] = tmp_dict
 
     return data, data_binds
-    # return data_binds
 
 
 if __name__ == '__main__':
