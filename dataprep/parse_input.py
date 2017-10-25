@@ -124,7 +124,7 @@ def sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location)
                 warnings.warn('The following files did not pass the sanity check:\ni-contour: {}\no-contour: {}'.format(i_contour_location, o_contour_location))
 
 
-def get_data():
+def get_data(data_directory='/data'):
     """ Fetch and bind data into dictionary
      Side note: I could have used a Data Class to do this, but dictionaries in python are just as efficient and have built-in routines to add/remove data.
 
@@ -132,10 +132,11 @@ def get_data():
     :return: dict containing i-contour, o-contour, mask, dicom_image, and nner, outerBoolean mask of shape (height, width)
     """
 
-    if sys.argv[0] is None:
-        data_directory = '../data'
-    data_directory = '../data'
+    # if sys.argv[0] is None:
+    #     data_directory = '../data'
+    # data_directory = '../data'
     # print(sys.argv)
+    print('cd (from parse_input.py):', os.getcwd())
 
     #####################
     # Test the data input
@@ -145,6 +146,7 @@ def get_data():
     df_IDs = get_IDs(data_directory)
 
     data, data_binds = dict(), []
+    ind=0
     filedicom = ''
     i_contour_directory, i_contour_filename = data_directory + '/contourfiles/{}/i-contours/','IM-0001-{}-icontour-manual.txt'
     o_contour_directory, o_contour_filename = data_directory + '/contourfiles/{}/o-contours/','IM-0001-{}-ocontour-manual.txt'
@@ -154,7 +156,8 @@ def get_data():
         list_dir_i_contour = os.listdir(i_contour_directory.format(df_IDs.original_id[_]))
         list_dir_o_contour = os.listdir(o_contour_directory.format(df_IDs.original_id[_]))
         # print(list_dir_i_contour, list_dir_o_contour)
-        tmp_dict, ind = dict(), 0
+        # tmp_dict = dict()
+        # ind = 0
         for s in list_dir_i_contour:
             no = s.split('-')[2]
 
@@ -173,28 +176,31 @@ def get_data():
 
             ###########
             # bind data into one dictionary
-            ind += 1
-            tmp_dict[ind] = {'i_contour': i_contour,
-                             'o_contour': o_contour,
-                             'mask' : mask,
-                             'dicom': img,
-                             'frame': no,
-                             'attributes': {
-                                 'file_dicom': filedicom,
-                                 'i_contour_location': i_contour_location,
-                                 'o_contour_location': o_contour_location,
-                                 'img_dicom_location': img_dicom_location,
-                                 'width': width,
-                                 'height': height,
-                                 },
-                             }
+            data[ind] = {'i_contour': i_contour,
+                         'o_contour': o_contour,
+                         'mask' : mask,
+                         'dicom': img,
+                         'frame': no,
+                         'subject_no': _,
+                         'ID_original': df_IDs.original_id[_],
+                         'patient_id': df_IDs.patient_id[_],
+                         'attributes': {
+
+                             'file_dicom': filedicom,
+                             'i_contour_location': i_contour_location,
+                             'o_contour_location': o_contour_location,
+                             'img_dicom_location': img_dicom_location,
+                             'width': width,
+                             'height': height,
+                             },
+                         }
             # list of files locations
-            data_binds.append([img_dicom_location, i_contour_location])
-        data[_] = tmp_dict
+            data_binds.append([ind, img_dicom_location, i_contour_location])
+            ind += 1
+        # data[_] = tmp_dict
 
-    # return data, data_binds
-
-
+    return data, data_binds
+    # return data_binds
 
 
 if __name__ == '__main__':

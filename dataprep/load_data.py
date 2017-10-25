@@ -22,7 +22,7 @@ class LoadData(object):
 
 
     def split_data_method(self, L, split_data):
-        """ Check that the split_data paramter is entered correctly and split the data accordingly
+        """ Check that the split_data parameter is entered correctly and split the data accordingly
         :param L: len of data
         :param split_data: how ti split the database. List [float a, float b], where a is the number of samples for training, and b the number of samples for validation
         :return: number of samples for training, validation, and testing.
@@ -45,32 +45,51 @@ class LoadData(object):
         return perc_train, perc_valid, perc_test
 
 
-    def load_data_generator(self, data, batch_size=8, split_data=[.7,.1], random_order=True):
+    def load_data_generator(self, batch_size=8, data_directory='./dataprep/data', split_data=[.7, .1], random_order=True):
         """
         Generator for data in batches
         :param data:
         :param batch_size:
         :return:
         """
+
+
+        data, data_binds = get_data(data_directory)
         L = len(data)
+        # print(L)
+
 
         perc_train, perc_valid, perc_test = self.split_data_method(L, split_data)
 
+        indeces = np.arange(L)
         if random_order:
-            # permutate data tor randomize it
-            data = data[np.random.permutation(np.arange(len(data)))]
-            # np.random.shuffle(arrdataay)
+            np.random.shuffle(indeces)
 
         start = 0
         while True:
             stop = start + batch_size
-            diff = stop - data.shape[0]
-            if diff <= 0:
-                batch = data[start:stop]
+            diff = stop - L
+            if diff < 0:
+                batch = indeces[start:stop]
+                start += batch_size
+            elif diff==0:
+                if random_order:
+                    np.random.shuffle(indeces)
+                batch = indeces[start:stop]
                 start += batch_size
             else:
-                batch = np.concatenate((data[start:], data[:diff]))
+                batch = np.concatenate((indeces[start:], indeces[:diff]))
                 start = diff
             batch = batch.astype(np.float32)
-            yield batch
+
+            input, output = [], []
+            # print('batch',batch)
+            for ind in batch:
+                # print(ind)
+                input.append(data[ind]['mask'])
+                output.append(data[ind]['dicom'])
+
+            # yield [indeces[int(k)] for k in batch],start,stop, indeces[:6]
+            yield [indeces[int(k)] for k in batch], batch
+            # yield np.array(input), np.array(output)
 
