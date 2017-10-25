@@ -12,6 +12,8 @@ from PIL import Image, ImageDraw
 import sys, os
 import pandas as pd
 
+import warnings
+
 def parse_contour_file(filename):
     """Parse the given contour filename
 
@@ -56,12 +58,12 @@ def parse_dicom_file(filename):
             dcm_image = dcm_image*slope + intercept
 
         dcm_dict = {'pixel_data' : dcm_image}
-        # print(dcm.Rows, dcm.Columns)
+
         return dcm_dict, dcm.Rows, dcm.Columns
 
     except InvalidDicomError:
-        #ToDo propagate the error
-        raise
+        # Propagate the error
+        raise Exception('The DICOM image is not valid. Filename: {}'.format(filename))
         # return None
 
 
@@ -93,13 +95,34 @@ def get_IDs(data_directory, id_file_name = '/link.csv'):
     filename = data_directory + id_file_name
     return pd.read_csv(filename)
 
-def sanitize_input():
-    #ToDo
-    """Attempt to spot misclassified samples by checking that i-contours are inside o-contours.
-    This is achieved by checking that, for a given x-coordinate, the followig is true (y1_o < y1_i < y2_i < y2_i) within some tolerance value.
-    Method 2: check that the Area for o-contours is greater than i-contours.
+def sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location):
+    """Attempt to detect errors in the data collection.
+    Method1: For samples where both i-contours and o-contours are available, check that i-contours are withing o-contours.
+    This is achieved by checking that, for a given x-coordinate, the following is true (y1_o < y1_i < y2_i < y2_i) within some tolerance value [tol].
+    Method 2: check that the Area for o-contours is greater than i-contours [not implemented].
     :return:
     """
+    if i_contour is None or o_contour is None:
+        return
+    i_c = np.abs(np.asarray(i_contour))
+    o_c = np.abs(np.asarray(o_contour))
+    d_i, d_o = dict(), dict()
+    for _ in range(i_c.shape[1]):
+        if i_c[_][0] in d_i:
+            d_i[i_c[_][0]] = np.max(d_i[i_c[_][0]], i_c[_][1])
+        else:
+            d_i[i_c[_][0]] = i_c[_][1]
+    for _ in range(o_c.shape[1]):
+        if o_c[_][0] in d_o:
+            d_o[o_c[_][0]] = np.max(d_o[o_c[_][0]], o_c[_][1])
+        else:
+            d_o[o_c[_][0]] = o_c[_][1]
+    tol = 3
+    for _ in d_i:
+        if _ in d_o:
+            if (max(d_o[_])-max(d_i[_])<tol or min(d_o[_])-min(d_i[_])<tol):
+                warnings.warn('The following files did not pass the sanity check:\ni-contour: {}\no-contour: {}'.format(i_contour_location, o_contour_location))
+
 
 def get_data():
     """ Fetch and bind data into dictionary
@@ -145,6 +168,8 @@ def get_data():
             o_contour = parse_contour_file(o_contour_location) if o_contour_location in list_dir_o_contour else None
             img, width, height = parse_dicom_file(img_dicom_location)
             mask = poly_to_mask(i_contour, width=width, height=height)
+
+            sanitize_input(i_contour, o_contour, i_contour_location, o_contour_location)
 
             ###########
             # bind data into one dictionary
