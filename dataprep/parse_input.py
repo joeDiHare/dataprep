@@ -136,7 +136,7 @@ def get_data(data_directory='/data'):
     #     data_directory = '../data'
     # data_directory = '../data'
     # print(sys.argv)
-    print('cd (from parse_input.py):', os.getcwd())
+    # print('cd (from parse_input.py):', os.getcwd())
 
     #####################
     # Test the data input
@@ -185,7 +185,6 @@ def get_data(data_directory='/data'):
                          'ID_original': df_IDs.original_id[_],
                          'patient_id': df_IDs.patient_id[_],
                          'attributes': {
-
                              'file_dicom': filedicom,
                              'i_contour_location': i_contour_location,
                              'o_contour_location': o_contour_location,

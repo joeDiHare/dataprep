@@ -11,24 +11,21 @@ class TestData(unittest.TestCase):
         pass
 
     def test_parsing(self):
-        # data, data_binds = get_data(data_directory='../../data')
-        # for d in data:
-        pass
+        print('Check that all images have the same size')
+        ld = LoadData(data_directory='../../data')
+        for d in ld.data:
+            assert(ld.data[d]['attributes']['width'] == ld.width_dicom)
+            assert (ld.data[d]['attributes']['height'] == ld.height_dicom)
 
     def test_generator(self):
-        ld = LoadData()
-        data = ld.load_data_generator(data_directory='../../data', batch_size=8, random_order=False)
+        ld = LoadData(data_directory='../../data')
+        training_data = ld.load_data_generator(batch_size=8, random_order=True)
         X = dict()
         for n in range(1000):
-            y, x = next(data)
-            # print('LEN',len(y))
+            x,y = next(training_data)
             for _ in y:
-                if str(_) in X:
-                    # print('here')
-                    X[str(_)]+=1
-                else:
-                    # print('oh')
-                    X[str(_)] = 1
+                _ = str(_)
+                X[_] = X[_]+1 if _ in X else 1
         res=[]
         for n in X:
             res.append(X[n])

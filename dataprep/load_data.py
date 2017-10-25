@@ -15,11 +15,14 @@ import pandas as pd
 
 class LoadData(object):
 
-
-    def __init__(self, width_dicom=256, height_dicom=256):
+    def __init__(self, data_directory='./dataprep/data'):
+        data, data_binds = get_data(data_directory)
+        width_dicom = data[0]['attributes']['width']
+        height_dicom = data[0]['attributes']['height']
+        self.data = data
+        self.data_bins = data_binds
         self.width_dicom = width_dicom
         self.height_dicom = height_dicom
-
 
     def split_data_method(self, L, split_data):
         """ Check that the split_data parameter is entered correctly and split the data accordingly
@@ -45,7 +48,7 @@ class LoadData(object):
         return perc_train, perc_valid, perc_test
 
 
-    def load_data_generator(self, batch_size=8, data_directory='./dataprep/data', split_data=[.7, .1], random_order=True):
+    def load_data_generator(self, batch_size=8, split_data=[.7, .1], random_order=True):
         """
         Generator for data in batches
         :param data:
@@ -53,22 +56,21 @@ class LoadData(object):
         :return:
         """
 
-
-        data, data_binds = get_data(data_directory)
-        L = len(data)
+        data = self.data
+        # data, data_binds = get_data(data_directory)
+        # L = len(data)
         # print(L)
 
+        perc_train, perc_valid, perc_test = self.split_data_method(len(data), split_data)
 
-        perc_train, perc_valid, perc_test = self.split_data_method(L, split_data)
-
-        indeces = np.arange(L)
+        indeces = np.arange(len(data))
         if random_order:
             np.random.shuffle(indeces)
 
         start = 0
         while True:
             stop = start + batch_size
-            diff = stop - L
+            diff = stop - len(data)
             if diff < 0:
                 batch = indeces[start:stop]
                 start += batch_size
@@ -89,7 +91,6 @@ class LoadData(object):
                 input.append(data[ind]['mask'])
                 output.append(data[ind]['dicom'])
 
-            # yield [indeces[int(k)] for k in batch],start,stop, indeces[:6]
-            yield [indeces[int(k)] for k in batch], batch
-            # yield np.array(input), np.array(output)
+            # yield [indeces[int(k)] for k in batch], batch
+            yield np.array(input), np.array(output)
 
